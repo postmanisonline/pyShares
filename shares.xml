@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<!-- Use '.' instead of ','-->
+<shareList>
+	<share>
+		<name>DPW.DE</name>
+		<trailingStopDate>2016-11-11</trailingStopDate>
+		<trailingStopPercentage>10</trailingStopPercentage>
+		<trailingStopAbsolute></trailingStopAbsolute>
+		<trailingStopInit>25.5</trailingStopInit>
+	</share>
+</shareList>
