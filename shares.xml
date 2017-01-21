@@ -2,10 +2,27 @@
 <!-- Use '.' instead of ','-->
 <shareList>
 	<share>
-		<name>DPW.DE</name>
-		<trailingStopDate>2016-11-11</trailingStopDate>
-		<trailingStopPercentage>10</trailingStopPercentage>
+		<name>BMW.DE</name>
+		<buyPrice>89.92</buyPrice>
+		<trailingStopDate>2016-12-23</trailingStopDate>
+		<trailingStopPercentage></trailingStopPercentage>
 		<trailingStopAbsolute></trailingStopAbsolute>
-		<trailingStopInit>25.5</trailingStopInit>
+		<trailingStopInit></trailingStopInit>
+	</share>
+	<share>
+		<name>PSM.DE</name>
+		<buyPrice>39.15</buyPrice>
+		<trailingStopDate>2017-01-16</trailingStopDate>
+		<trailingStopPercentage></trailingStopPercentage>
+		<trailingStopAbsolute></trailingStopAbsolute>
+		<trailingStopInit></trailingStopInit>
+	</share>
+	<share>
+		<name>RWE.DE</name>
+		<buyPrice>12.78</buyPrice>
+		<trailingStopDate>2017-01-16</trailingStopDate>
+		<trailingStopPercentage></trailingStopPercentage>
+		<trailingStopAbsolute></trailingStopAbsolute>
+		<trailingStopInit></trailingStopInit>
 	</share>
 </shareList>
