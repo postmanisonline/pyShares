@@ -6,6 +6,7 @@ import datetime
 import xml.etree.ElementTree
 import curses
 import traceback
+import xml_share_repository as xsr
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 
@@ -29,9 +30,6 @@ class TrailingStopPrinter:
         try:
             self.stdscr = curses.initscr()
             curses.start_color()
-            #curses.init_pair(0, curses.COLOR_WHITE, curses.COLOR_BLACK)
-            #curses.init_pair(1, curses.COLOR_RED, curses.COLOR_WHITE)
-            #curses.use_default_colors()
         except:
             print 'Could not init curses'
 
@@ -49,62 +47,35 @@ class TrailingStopPrinter:
 
             pretty_print_result = ''
 
-            xml_shares_root = xml.etree.ElementTree.parse('shares.xml').getroot()
+            share_repository = xsr.xml_share_repository()
+            share_repository.built_up_repository()
+            
 
-            for xml_share in xml_shares_root.findall('share'):
-                xml_name = ''
-                xml_units = ''
-                xml_buy_price = ''
-                xml_trailing_stop_date = ''
-                xml_trailing_stop_percentage = ''
-                xml_trailing_stop_absolute = ''
-                xml_trailing_stop_init = ''
-
-                for xml_name_temp in xml_share.findall('name'):
-                    xml_name = str(xml_name_temp.text)
-                    self.print_and_increase_line_counter(xml_name + '\n')
-                for xml_units_temp in xml_share.findall('units'):
-                    xml_units = str(xml_units_temp.text)
-                    self.print_and_increase_line_counter('-> Units {}\n'
-                                                         .format(xml_units))
-                for xml_buy_price_temp in xml_share.findall('buyPrice'):
-                    xml_buy_price = str(xml_buy_price_temp.text)
-                    self.print_and_increase_line_counter('-> buy price {}\n'
-                                                         .format(xml_buy_price))
-                for xml_trailing_stop_date_temp in xml_share.findall('trailingStopDate'):
-                    xml_trailing_stop_date = str(xml_trailing_stop_date_temp.text)
-                    self.print_and_increase_line_counter('-> Date {}\n'
-                                                         .format(xml_trailing_stop_date))
-                for xml_trailing_stop_percentage_temp in xml_share.findall('trailingStopPercentage'):
-                    xml_trailing_stop_percentage = str(xml_trailing_stop_percentage_temp.text)
-                    self.print_and_increase_line_counter('-> Percentage {}\n'\
-                                                     .format(xml_trailing_stop_percentage))
-                for xml_trailing_stop_absolute_temp in xml_share.findall('trailingStopAbsolute'):
-                    xml_trailing_stop_absolute = str(xml_trailing_stop_absolute_temp.text)
-                    self.print_and_increase_line_counter('-> Absolute {}\n'\
-                                                     .format(xml_trailing_stop_absolute))
-                for xml_trailing_stop_init_temp in xml_share.findall('trailingStopInit'):
-                    xml_trailing_stop_init = str(xml_trailing_stop_init_temp.text)
-                    self.print_and_increase_line_counter('-> Init {}\n'
-                                                         .format(xml_trailing_stop_init))
-
-                share = Share(xml_name)
+            for xml_share in share_repository.xml_shares:
+                temp_share = share_repository.xml_shares[xml_share]
+                
+                self.print_and_increase_line_counter(str(temp_share.xml_name) + '\n')
+                self.print_and_increase_line_counter(str(temp_share.xml_units) + '\n')
+                self.print_and_increase_line_counter(str(temp_share.xml_buy_price) + '\n')
+                self.print_and_increase_line_counter(str(temp_share.xml_trailing_stop_date) + '\n')
+                self.print_and_increase_line_counter(str(temp_share.xml_trailing_stop_percentage) + '\n')
+                self.print_and_increase_line_counter(str(temp_share.xml_trailing_stop_absolute) + '\n')
+                self.print_and_increase_line_counter(str(temp_share.xml_trailing_stop_init) + '\n')
+            
+                share = Share(temp_share.xml_name)
                 pretty_print_result = pretty_print_result + share.get_name() + ': '
                 self.print_and_increase_line_counter(share.get_name() + '\n')
                 #self.print_and_increase_line_counter(str(share.get_info()) + '\n')
 
                 self.stdscr.refresh()
 
-                if xml_trailing_stop_date != datetime.datetime.now().strftime('%Y-%m-%d'):
+                if temp_share.xml_trailing_stop_date != datetime.datetime.now().strftime('%Y-%m-%d'):
                     historical_data_maximum = 0.0
-                    historical_data = share.get_historical(xml_trailing_stop_date,
+                    historical_data = share.get_historical(temp_share.xml_trailing_stop_date,
                                                            datetime.datetime.now().strftime('%Y-%m-%d'))
-
-                    #self.drawPlot(share, xml_trailing_stop_date)
 
 
                     for historical_date in historical_data:
-                        #self.print_and_increase_line_counter(str(historical_date) + '\n')
                         if historical_data_maximum < float(historical_date['High']):
                             historical_data_maximum = float(historical_date['High'])
 
@@ -112,36 +83,36 @@ class TrailingStopPrinter:
                                                      .format(historical_data_maximum))
                     self.stdscr.refresh()
 
-                    if xml_trailing_stop_percentage != 'None':
+                    if temp_share.xml_trailing_stop_percentage != 'None':
                         possible_trailing_stop = historical_data_maximum - \
-                        (historical_data_maximum * (float(xml_trailing_stop_percentage) / 100))
+                        (historical_data_maximum * (float(temp_share.xml_trailing_stop_percentage) / 100))
 
-                        if float(xml_trailing_stop_init) < possible_trailing_stop:
+                        if float(temp_share.xml_trailing_stop_init) < possible_trailing_stop:
                             pretty_print_result = pretty_print_result + \
                                 str(possible_trailing_stop) + '\n'
                             self.print_and_increase_line_counter('trailingStop {}\n'\
                                                              .format(possible_trailing_stop))
                             self.stdscr.refresh()
                         else:
-                            pretty_print_result = pretty_print_result + xml_trailing_stop_init + '\n'
+                            pretty_print_result = pretty_print_result + temp_share.xml_trailing_stop_init + '\n'
                             self.print_and_increase_line_counter('trailingStop {} - still on init value\n'\
-                            .format(xml_trailing_stop_init), curses.A_BOLD)
+                            .format(temp_share.xml_trailing_stop_init), curses.A_BOLD)
 
-                    if xml_trailing_stop_absolute != 'None':
+                    if temp_share.xml_trailing_stop_absolute != 'None':
                         possible_trailing_stop = historical_data_maximum - \
-                        float(xml_trailing_stop_absolute)
+                        float(temp_share.xml_trailing_stop_absolute)
 
-                        if float(xml_trailing_stop_init) < possible_trailing_stop:
+                        if float(temp_share.xml_trailing_stop_init) < possible_trailing_stop:
                             pretty_print_result = pretty_print_result + str(possible_trailing_stop) + '\n'
                             self.print_and_increase_line_counter('trailingStop {}\n'\
                                                              .format(possible_trailing_stop))
                         else:
-                            pretty_print_result = pretty_print_result + xml_trailing_stop_init + '\n'
+                            pretty_print_result = pretty_print_result + temp_share.xml_trailing_stop_init + '\n'
                             self.print_and_increase_line_counter('trailingStop {} (still on init value)\n'
-                                .format(xml_trailing_stop_init), curses.A_BOLD)
+                                .format(temp_share.xml_trailing_stop_init), curses.A_BOLD)
 
-                    if (xml_trailing_stop_percentage == 'None') and\
-                        (xml_trailing_stop_absolute == 'None'):
+                    if (temp_share.xml_trailing_stop_percentage == 'None') and\
+                        (temp_share.xml_trailing_stop_absolute == 'None'):
                         pretty_print_result = pretty_print_result + 'No stop set\n'
                 else:
                     self.print_and_increase_line_counter('Trailing stop set today '+\
@@ -162,10 +133,10 @@ class TrailingStopPrinter:
                 self.line_counter = self.line_counter + 1
                 self.print_and_increase_line_counter('\n')
 
-                current_win_or_loss = (int(xml_units) * float(share.get_price())) - \
-                                        (int(xml_units) * float(xml_buy_price))
+                current_win_or_loss = (int(temp_share.xml_units) * float(share.get_price())) - \
+                                        (int(temp_share.xml_units) * float(temp_share.xml_buy_price))
 
-                self.plot_candle_stick_diagram(share_symbole=xml_name, share=share, units=xml_units, buy_price=xml_buy_price, win_or_loss=current_win_or_loss, start_date=xml_trailing_stop_date)
+                self.plot_candle_stick_diagram(share_symbole=temp_share.xml_name, share=share, units=temp_share.xml_units, buy_price=temp_share.xml_buy_price, win_or_loss=current_win_or_loss, start_date=temp_share.xml_trailing_stop_date)
 
             self.stdscr.addstr(0, 0, 'pyShares              - has_colors(){} - can_change_color(){}'\
                                .format(curses.has_colors(), curses.can_change_color()))
