@@ -3,24 +3,30 @@
 <shareList>
 	<share>
 		<name>BMW.DE</name>
+		<units>40</units>		
 		<buyPrice>89.92</buyPrice>
-		<trailingStopDate>2016-12-23</trailingStopDate>
+		<buyDate>2017-01-01</buyDate>
+		<trailingStopDate>2017-01-20</trailingStopDate>
 		<trailingStopPercentage></trailingStopPercentage>
 		<trailingStopAbsolute></trailingStopAbsolute>
 		<trailingStopInit></trailingStopInit>
 	</share>
 	<share>
 		<name>PSM.DE</name>
+		<units>125</units>
 		<buyPrice>39.15</buyPrice>
-		<trailingStopDate>2017-01-16</trailingStopDate>
+		<buyDate>2017-01-01</buyDate>
+		<trailingStopDate></trailingStopDate>
 		<trailingStopPercentage></trailingStopPercentage>
 		<trailingStopAbsolute></trailingStopAbsolute>
 		<trailingStopInit></trailingStopInit>
 	</share>
 	<share>
 		<name>RWE.DE</name>
+		<units>100</units>
 		<buyPrice>12.78</buyPrice>
-		<trailingStopDate>2017-01-16</trailingStopDate>
+		<buyDate>2017-01-01</buyDate>
+		<trailingStopDate></trailingStopDate>
 		<trailingStopPercentage></trailingStopPercentage>
 		<trailingStopAbsolute></trailingStopAbsolute>
 		<trailingStopInit></trailingStopInit>
