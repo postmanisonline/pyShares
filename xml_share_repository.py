@@ -8,11 +8,11 @@ class xml_share_repository:
     """
     xml_shares = {}
     
-    def built_up_repository(self):
+    def built_up_repository(self, share_file='shares.xml'):
         """
         Fill the repository at start.
         """
-        xml_shares_root = xml.etree.ElementTree.parse('shares.xml').getroot()
+        xml_shares_root = xml.etree.ElementTree.parse(share_file).getroot()
 
         for xml_share_in_file in xml_shares_root.findall('share'):
             xml_share = xshare.xml_share()

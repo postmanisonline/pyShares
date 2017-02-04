@@ -7,6 +7,7 @@ import curses
 import traceback
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
+import numpy as np
 
 from matplotlib.dates import DateFormatter, WeekdayLocator,\
     DayLocator, MONDAY, date2num
@@ -14,6 +15,8 @@ from matplotlib.finance import quotes_historical_yahoo_ohlc, candlestick_ohlc
 from yahoo_finance import Share
 
 import xml_share_repository as xsr
+from Tkconstants import FIRST
+from samba.kcc.graph import convert_schedule_to_repltimes
 
 
 LABEL_ROTATION = 45
@@ -140,7 +143,11 @@ class TrailingStopPrinter:
                                         (int(xml_share.xml_units) * float(xml_share.xml_buy_price))
 
                 self.stdscr.refresh()
-                self.plot_candle_stick_diagram(share_symbole=xml_share.xml_name, share=share, units=xml_share.xml_units, buy_price=xml_share.xml_buy_price, buy_date=xml_share.xml_buy_date, current_price=share.get_price(), today_open=share.get_open(), win_or_loss=current_win_or_loss, trailingstop_date=xml_share.xml_trailing_stop_date)
+                self.plot_candle_stick_diagram(xml_share=xml_share,
+                                               share=share,
+                                               current_price=share.get_price(),
+                                               today_open=share.get_open(),
+                                               win_or_loss=current_win_or_loss)
 
             self.stdscr.addstr(0, 0, 'pyShares              - has_colors(){} - can_change_color(){}'\
                                .format(curses.has_colors(), curses.can_change_color()))
@@ -184,30 +191,29 @@ class TrailingStopPrinter:
             self.line_counter = self.line_counter + 1
 
 
-    def plot_candle_stick_diagram(self, share_symbole, share, units, buy_price, buy_date, current_price, today_open, win_or_loss, trailingstop_date):
+    def plot_candle_stick_diagram(self, xml_share, share, current_price, today_open, win_or_loss):
         """
         This method is used for printing candle stick diagrams.
-        """
+        """       
 
-        converted_buy_date = datetime.datetime.strptime(buy_date, "%Y-%m-%d")
+        converted_buy_date = datetime.datetime.strptime(xml_share.xml_buy_date, "%Y-%m-%d")
         today = datetime.datetime.now()
 
-        # the last six months
-        date1 = today - datetime.timedelta(6*365/12)
-        date2 = (today.year, today.month, today.day)
 
         mondays = WeekdayLocator(MONDAY)        # major ticks on the mondays
         alldays = DayLocator()              # minor ticks on the days
         #week_formatter = DateFormatter('%d. %b')  # e.g., 12. Jan
         week_formatter = DateFormatter('%Y-%m-%d')  # e.g., 12. Jan
 
-        quotes = quotes_historical_yahoo_ohlc(share_symbole, date1, date2)
+        quotes = quotes_historical_yahoo_ohlc(xml_share.xml_name, 
+                                              today - datetime.timedelta(6*365/12),
+                                              (today.year, today.month, today.day))
 
         #fake the candle of today
         #d, open, high, low, close, volume
-        temp_high = 0
-        temp_low = 0
-        temp_close = 0
+        temp_high = 0.0
+        temp_low = 0.0
+        temp_close = 0.0
 
         if today_open <= current_price:
             temp_low = float(today_open)
@@ -222,6 +228,7 @@ class TrailingStopPrinter:
                            temp_high,
                            temp_low,
                            temp_close)
+        
         quotes.append(values_of_today)
 
         if len(quotes) == 0:
@@ -240,34 +247,67 @@ class TrailingStopPrinter:
         plt.setp(plt.gca().get_xticklabels(), rotation=LABEL_ROTATION, horizontalalignment='right')
 
         # print the buy price
-        plt.axhline(y=float(buy_price), linewidth=2, color='r')
+        plt.axhline(y=float(xml_share.xml_buy_price), linewidth=2, color='r')
 
         # padding
         axes.grid(True)
         axes.margins(PADDING) # 5% padding in all directions
 
-        axes.set_title(share.get_name() + ' - buy price: ' + buy_price + \
-                     ' - units: ' + units + ' - win or loss: ' + str(win_or_loss))
+        axes.set_title(share.get_name() + ' - buy price: ' + xml_share.xml_buy_price + \
+                     ' - units: ' + xml_share.xml_units + ' - win or loss: ' + str(win_or_loss))
 
         # create labels
         red_patch = mpatches.Patch(color='red', label='buy price')
         green_patch = mpatches.Patch(color='green', label='last candle: today\'s estimated value')
         blue_patch = mpatches.Patch(color='blue', label='buy date')
 
+        
+        EMA_days = []
+        SMA_day_counter = 0
+        
+        for entry in quotes:
+            #the first 20 days of the historical data has no EMA for EMA20
+            if SMA_day_counter >= 21:
+                EMA_days.append(entry[0])
+            SMA_day_counter = SMA_day_counter + 1
+        
+        
+        only_closing_values = []
+        for entry in quotes:
+            only_closing_values.append(entry[4])
+        
+        plt.plot(EMA_days, self.exp_moving_average(historical_values=only_closing_values, time_window=20)[21:], 'r')
+        
+        plt.plot(EMA_days[30:], self.exp_moving_average(historical_values=only_closing_values, time_window=50)[51:], 'g')
+        
+        # add labels
+        EMA20_patch = mpatches.Patch(color='red', label='EMA20 (dotted)')
+        EMA50_patch = mpatches.Patch(color='green', label='EMA50 (dotted)')        
+        
+        
         # if there is a trailing stop date then print it
-        if trailingstop_date != 'None':
-            converted_ts_date = datetime.datetime.strptime(trailingstop_date, "%Y-%m-%d")
+        if xml_share.xml_trailing_stop_date != 'None':
+            converted_ts_date = datetime.datetime.strptime(xml_share.xml_trailing_stop_date, "%Y-%m-%d")
             plt.vlines(x=converted_buy_date, ymin=temp_low*VLINE_LOW_SCALE, ymax=temp_high*VLINE_HIGH_SCALE, colors='b')
             plt.vlines(x=converted_ts_date, ymin=temp_low*VLINE_LOW_SCALE, ymax=temp_low*VLINE_HIGH_SCALE, colors='m')
 
             magenta_patch = mpatches.Patch(color='magenta', label='trailing stop date')
-            plt.legend(handles=[red_patch, green_patch, blue_patch, magenta_patch], loc=2)
+            plt.legend(handles=[red_patch, green_patch, blue_patch, magenta_patch, EMA20_patch, EMA50_patch], loc=2)
         else:
-            plt.legend(handles=[red_patch, green_patch, blue_patch], loc=2)
+            plt.legend(handles=[red_patch, green_patch, blue_patch, EMA20_patch, EMA50_patch], loc=2)
             plt.vlines(x=converted_buy_date, ymin=temp_low*VLINE_LOW_SCALE, ymax=temp_low*VLINE_HIGH_SCALE, colors='b')
-
-        #plt.show(block=False)
-        plt.show()
+         
+         
+        plt.show()         
+     
+      
+    def exp_moving_average(self, historical_values, time_window):
+        weigths = np.exp(np.linspace(-1., 0., time_window))
+        weigths /= weigths.sum()
+        a = np.convolve(historical_values, weigths)[:len(historical_values)]
+        a[:time_window] = a[time_window]
+        return a  
+        
 
 if __name__ == "__main__":
     #debugInput = raw_input('This is an entry point for remote debugging\n')
