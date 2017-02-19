@@ -8,17 +8,19 @@ import traceback
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
+import os
+
 
 from matplotlib.dates import DateFormatter, WeekdayLocator,\
     DayLocator, MONDAY, date2num
 from matplotlib.finance import quotes_historical_yahoo_ohlc, candlestick_ohlc
-from yahoo_finance import Share
+from yahoo_finance import Share, YQLQueryError, YQLResponseMalformedError
 
 import xml_share_repository as xsr
-from Tkconstants import FIRST
-from samba.kcc.graph import convert_schedule_to_repltimes
 
 
+CLOSING_VALUE_POSITION = 4
+DATE_POSITION = 0
 LABEL_ROTATION = 45
 MAX_LINES_OF_TERMINAL = 44
 NUMBER_OF_HORIZONTAL_CHARACTERS = 200
@@ -160,12 +162,35 @@ class TrailingStopPrinter:
             self.stdscr.refresh()
             self.stdscr.getch()
         except BaseException as base_exception:
-            with open('error_log.txt', 'w') as error_log:
+            with open('error_log.txt', 'a') as error_log:
                 error_log.write(str(base_exception))
                 error_log.write(str(traceback.print_exc()))
                 error_log.write('line_counter was ' + str(self.line_counter))
             self.my_print('exception {}'.format(base_exception))
             self.stdscr.addstr(0, 0, 'Something went terribly wrong               ')
+            self.stdscr.getch()
+        except YQLQueryError as yql_err:
+            with open('error_log.txt', 'a') as error_log:
+                error_log.write(str(yql_err))
+                error_log.write(str(traceback.print_exc()))
+                error_log.write('line_counter was ' + str(self.line_counter))
+            self.my_print('exception {}'.format(yql_err))
+            self.stdscr.addstr(0, 0, 'Something went terribly wrong => could not receive data from server              ')
+            self.stdscr.getch()
+        except YQLResponseMalformedError as yql_err:
+            with open('error_log.txt', 'a') as error_log:
+                error_log.write(str(yql_err))
+                error_log.write(str(traceback.print_exc()))
+                error_log.write('line_counter was ' + str(self.line_counter))
+            self.my_print('exception {}'.format(yql_err))
+            self.stdscr.addstr(0, 0, 'Something went terribly wrong => could not receive data from server              ')
+            self.stdscr.getch()
+        except:
+            with open('error_log.txt', 'a') as error_log:
+                error_log.write(str(traceback.print_exc()))
+                error_log.write('line_counter was ' + str(self.line_counter))
+            self.my_print('unknown exception')
+            self.stdscr.addstr(0, 0, 'Something went terribly wrong => unknown exception              ')
             self.stdscr.getch()
         finally:
             #deinit stdscr
@@ -206,7 +231,7 @@ class TrailingStopPrinter:
         week_formatter = DateFormatter('%Y-%m-%d')  # e.g., 12. Jan
 
         quotes = quotes_historical_yahoo_ohlc(xml_share.xml_name, 
-                                              today - datetime.timedelta(6*365/12),
+                                              today - datetime.timedelta(12*365/12),
                                               (today.year, today.month, today.day))
 
         #fake the candle of today
@@ -260,29 +285,19 @@ class TrailingStopPrinter:
         red_patch = mpatches.Patch(color='red', label='buy price')
         green_patch = mpatches.Patch(color='green', label='last candle: today\'s estimated value')
         blue_patch = mpatches.Patch(color='blue', label='buy date')
+        EMA20_patch = mpatches.Patch(color='red', label='EMA20')
+        EMA50_patch = mpatches.Patch(color='green', label='EMA50') 
 
         
         EMA_days = []
-        SMA_day_counter = 0
-        
-        for entry in quotes:
-            #the first 20 days of the historical data has no EMA for EMA20
-            if SMA_day_counter >= 21:
-                EMA_days.append(entry[0])
-            SMA_day_counter = SMA_day_counter + 1
-        
-        
         only_closing_values = []
+         
         for entry in quotes:
-            only_closing_values.append(entry[4])
+            EMA_days.append(entry[DATE_POSITION])
+            only_closing_values.append(entry[CLOSING_VALUE_POSITION])
         
-        plt.plot(EMA_days, self.exp_moving_average(historical_values=only_closing_values, time_window=20)[21:], 'r')
-        
-        plt.plot(EMA_days[30:], self.exp_moving_average(historical_values=only_closing_values, time_window=50)[51:], 'g')
-        
-        # add labels
-        EMA20_patch = mpatches.Patch(color='red', label='EMA20 (dotted)')
-        EMA50_patch = mpatches.Patch(color='green', label='EMA50 (dotted)')        
+        plt.plot(EMA_days[21:], self.exp_moving_average(historical_values=only_closing_values, time_window=20)[21:], 'r')
+        plt.plot(EMA_days[51:], self.exp_moving_average(historical_values=only_closing_values, time_window=50)[51:], 'g')
         
         
         # if there is a trailing stop date then print it
@@ -292,13 +307,18 @@ class TrailingStopPrinter:
             plt.vlines(x=converted_ts_date, ymin=temp_low*VLINE_LOW_SCALE, ymax=temp_low*VLINE_HIGH_SCALE, colors='m')
 
             magenta_patch = mpatches.Patch(color='magenta', label='trailing stop date')
-            plt.legend(handles=[red_patch, green_patch, blue_patch, magenta_patch, EMA20_patch, EMA50_patch], loc=2)
+            plt.legend(handles=[red_patch, green_patch, blue_patch, magenta_patch, EMA20_patch, EMA50_patch], loc=2, prop={'size':10})
         else:
-            plt.legend(handles=[red_patch, green_patch, blue_patch, EMA20_patch, EMA50_patch], loc=2)
             plt.vlines(x=converted_buy_date, ymin=temp_low*VLINE_LOW_SCALE, ymax=temp_low*VLINE_HIGH_SCALE, colors='b')
+            plt.legend(handles=[red_patch, green_patch, blue_patch, EMA20_patch, EMA50_patch], loc=2, prop={'size':10})
          
-         
-        plt.show()         
+
+        if not os.path.exists('./exports'):
+            os.makedirs('./exports')
+
+        plt.savefig('./exports/' + xml_share.xml_name + '.png', dpi=400) 
+        plt.show()
+                
      
       
     def exp_moving_average(self, historical_values, time_window):
