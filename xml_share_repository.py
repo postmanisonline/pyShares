@@ -1,12 +1,12 @@
 import xml.etree.ElementTree
 import xml_share as xshare
-import hashlib
+
 
 class xml_share_repository:
     """
     Stores the information read from xml for easy access.
     """
-    xml_shares = {}
+    xml_shares = []
     
     def built_up_repository(self, share_file='shares.xml'):
         """
@@ -41,5 +41,13 @@ class xml_share_repository:
             for xml_trailing_stop_init_temp in xml_share_in_file.findall('trailingStopInit'):
                 xml_share.xml_trailing_stop_init = str(xml_trailing_stop_init_temp.text)
                 
-            hashed_xml_share = hashlib.md5(str(xml_share))
-            self.xml_shares[hashed_xml_share] = xml_share
+            
+            positionToInsert = 0
+            
+            for entry in self.xml_shares:
+                if entry.xml_name < xml_share.xml_name:
+                    positionToInsert = positionToInsert + 1
+                else:
+                    break
+                    
+            self.xml_shares.insert(positionToInsert, xml_share)

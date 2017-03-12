@@ -9,6 +9,7 @@ import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+import sys
 
 
 from matplotlib.dates import DateFormatter, WeekdayLocator,\
@@ -17,6 +18,7 @@ from matplotlib.finance import quotes_historical_yahoo_ohlc, candlestick_ohlc
 from yahoo_finance import Share, YQLQueryError, YQLResponseMalformedError
 
 import xml_share_repository as xsr
+from xml_share import xml_share
 
 
 CLOSING_VALUE_POSITION = 4
@@ -57,11 +59,18 @@ class TrailingStopPrinter:
             pretty_print_result = ''
 
             share_repository = xsr.xml_share_repository()
-            share_repository.built_up_repository()
+            
+            if len(sys.argv)==1:
+                share_repository.built_up_repository()
+            elif len(sys.argv)==2 and sys.argv[1]=='-w':
+                share_repository.built_up_repository(share_file='watchlist.xml')
+            else:
+                self.my_print('Arguments cannot be processed')
 
 
-            for temp_share in share_repository.xml_shares:
-                xml_share = share_repository.xml_shares[temp_share]
+            shareCounter = 0
+            
+            for xml_share in share_repository.xml_shares:
 
 #                 self.my_print(str(xml_share.xml_name) + '\n')
 #                 self.my_print(str(xml_share.xml_units) + '\n')
@@ -71,13 +80,26 @@ class TrailingStopPrinter:
 #                 self.my_print(str(xml_share.xml_trailing_stop_absolute) + '\n')
 #                 self.my_print(str(xml_share.xml_trailing_stop_init) + '\n')
 
+                shareCounter = shareCounter + 1
                 share = Share(xml_share.xml_name)
-                pretty_print_result = pretty_print_result + share.get_name() + ': '
-                self.my_print(share.get_name() + '\n')
+                pretty_print_result = pretty_print_result + str(shareCounter) + ': ' + share.get_name() + ': '
+                self.my_print(str(shareCounter) + ': ' + share.get_name() + '\n')
                 #self.my_print(str(share.get_info()) + '\n')
 
-                self.stdscr.refresh()
+            self.my_print('Select a share or press \'e\' to exit')
+            self.stdscr.refresh()
 
+            quitPySahres = False
+            nextAction = '-1'
+            nextAction = self.stdscr.getstr()
+            
+            if nextAction == 'e':
+                quitPySahres = True
+            
+            while quitPySahres == False:    
+                xml_share = share_repository.xml_shares[int(nextAction)-1]
+                share = Share(xml_share.xml_name) # user selections start with 1 
+                
                 today = datetime.datetime.now()
 
                 if (xml_share.xml_trailing_stop_date != 'None') and (xml_share.xml_trailing_stop_date != today.strftime('%Y-%m-%d')):
@@ -85,13 +107,12 @@ class TrailingStopPrinter:
                     historical_data = share.get_historical(xml_share.xml_trailing_stop_date,
                                                            today.strftime('%Y-%m-%d'))
 
-
                     for historical_date in historical_data:
                         if historical_data_maximum < float(historical_date['High']):
                             historical_data_maximum = float(historical_date['High'])
 
-                    self.my_print('historical_data_maximum: {}\n'\
-                                                     .format(historical_data_maximum))
+                    #self.my_print('historical_data_maximum: {}\n'\
+                    #                                 .format(historical_data_maximum))
                     self.stdscr.refresh()
 
                     if xml_share.xml_trailing_stop_percentage != 'None':
@@ -101,13 +122,13 @@ class TrailingStopPrinter:
                         if float(xml_share.xml_trailing_stop_init) < possible_trailing_stop:
                             pretty_print_result = pretty_print_result + \
                                 str(possible_trailing_stop) + '\n'
-                            self.my_print('trailingStop {}\n'\
-                                                             .format(possible_trailing_stop))
+                            #self.my_print('trailingStop {}\n'\
+                            #                                 .format(possible_trailing_stop))
                             self.stdscr.refresh()
                         else:
                             pretty_print_result = pretty_print_result + xml_share.xml_trailing_stop_init + '\n'
-                            self.my_print('trailingStop {} - still on init value\n'\
-                            .format(xml_share.xml_trailing_stop_init), curses.A_BOLD)
+                            #self.my_print('trailingStop {} - still on init value\n'\
+                            #.format(xml_share.xml_trailing_stop_init), curses.A_BOLD)
 
                     if xml_share.xml_trailing_stop_absolute != 'None':
                         possible_trailing_stop = historical_data_maximum - \
@@ -115,33 +136,36 @@ class TrailingStopPrinter:
 
                         if float(xml_share.xml_trailing_stop_init) < possible_trailing_stop:
                             pretty_print_result = pretty_print_result + str(possible_trailing_stop) + '\n'
-                            self.my_print('trailingStop {}\n'\
-                                                             .format(possible_trailing_stop))
+                            #self.my_print('trailingStop {}\n'\
+                            #                                 .format(possible_trailing_stop))
                         else:
                             pretty_print_result = pretty_print_result + xml_share.xml_trailing_stop_init + '\n'
-                            self.my_print('trailingStop {} (still on init value)\n'
-                                          .format(xml_share.xml_trailing_stop_init), curses.A_BOLD)
+                            #self.my_print('trailingStop {} (still on init value)\n'
+                            #              .format(xml_share.xml_trailing_stop_init), curses.A_BOLD)
 
                     if (xml_share.xml_trailing_stop_percentage == 'None') and\
                         (xml_share.xml_trailing_stop_absolute == 'None'):
                         pretty_print_result = pretty_print_result + 'No stop set\n'
                 else:
-                    self.my_print('Trailing stop set today '+\
-                                                     '=> no historical data available yet')
+                    #self.my_print('Trailing stop set today '+\
+                    #                                 '=> no historical data available yet')
                     pretty_print_result = pretty_print_result + \
                     'Trailing stop set today => no historical data available yet\n'
 
                 #pretty_print_result = pretty_print_result + ' --- '
 
-                self.my_print('Open: {}\n'.format(share.get_open()))
-                self.my_print('Current: {}\n'.format(share.get_price()))
-                self.my_print('Update time: {}\n'.format(share.get_trade_datetime()))
+                #self.my_print('Open: {}\n'.format(share.get_open()))
+                #self.my_print('Current: {}\n'.format(share.get_price()))
+                #self.my_print('Update time: {}\n'.format(share.get_trade_datetime()))
                 #self.my_print('-----------------\n')
-                self.stdscr.hline(self.line_counter, 0, '-', NUMBER_OF_HORIZONTAL_CHARACTERS)
+                #self.stdscr.hline(self.line_counter, 0, '-', NUMBER_OF_HORIZONTAL_CHARACTERS)
                 self.line_counter = self.line_counter + 1
-                self.my_print('\n')
+                #self.my_print('\n')
 
-                current_win_or_loss = (int(xml_share.xml_units) * float(share.get_price())) - \
+                current_win_or_loss = 0
+                
+                if xml_share.xml_buy_price != 'None':
+                    current_win_or_loss = (int(xml_share.xml_units) * float(share.get_price())) - \
                                         (int(xml_share.xml_units) * float(xml_share.xml_buy_price))
 
                 self.stdscr.refresh()
@@ -150,15 +174,19 @@ class TrailingStopPrinter:
                                                current_price=share.get_price(),
                                                today_open=share.get_open(),
                                                win_or_loss=current_win_or_loss)
+                
+                nextAction = self.stdscr.getstr()
+            
+                if nextAction == 'e':
+                    quitPySahres = True
 
-            self.stdscr.addstr(0, 0, 'pyShares              - has_colors(){} - can_change_color(){}'\
-                               .format(curses.has_colors(), curses.can_change_color()))
+            self.stdscr.addstr(0, 0, 'pyShares')
             self.stdscr.refresh()
 
             self.my_print(pretty_print_result, curses.A_BOLD)
             self.line_counter = self.line_counter + pretty_print_result.count('\n')
 
-            self.my_print('Press a key to stop')
+            self.my_print('Press ENTER to exit')
             self.stdscr.refresh()
             self.stdscr.getch()
         except BaseException as base_exception:
@@ -199,6 +227,7 @@ class TrailingStopPrinter:
             curses.echo()
             curses.endwin()
 
+
     def my_print(self, text, mode=curses.A_NORMAL):
         """
         This method is used for printing one line
@@ -221,13 +250,15 @@ class TrailingStopPrinter:
         This method is used for printing candle stick diagrams.
         """       
 
-        converted_buy_date = datetime.datetime.strptime(xml_share.xml_buy_date, "%Y-%m-%d")
         today = datetime.datetime.now()
+        converted_buy_date = today
+        
+        if xml_share.xml_buy_date!='None':    
+            converted_buy_date = datetime.datetime.strptime(xml_share.xml_buy_date, "%Y-%m-%d")
+        
 
-
-        mondays = WeekdayLocator(MONDAY)        # major ticks on the mondays
-        alldays = DayLocator()              # minor ticks on the days
-        #week_formatter = DateFormatter('%d. %b')  # e.g., 12. Jan
+        mondays = WeekdayLocator(MONDAY)            # major ticks on the mondays
+        alldays = DayLocator()                      # minor ticks on the days
         week_formatter = DateFormatter('%Y-%m-%d')  # e.g., 12. Jan
 
         quotes = quotes_historical_yahoo_ohlc(xml_share.xml_name, 
@@ -272,14 +303,17 @@ class TrailingStopPrinter:
         plt.setp(plt.gca().get_xticklabels(), rotation=LABEL_ROTATION, horizontalalignment='right')
 
         # print the buy price
-        plt.axhline(y=float(xml_share.xml_buy_price), linewidth=2, color='r')
+        if xml_share.xml_buy_price!='None':
+            plt.axhline(y=float(xml_share.xml_buy_price), linewidth=2, color='r')
+            axes.set_title(share.get_name() + ' - buy price: ' + xml_share.xml_buy_price + \
+                           ' - units: ' + xml_share.xml_units + ' - win or loss: ' + str(win_or_loss))
+        else:
+            axes.set_title(share.get_name() + ' - buy price: ' + \
+                           ' - units: ' + xml_share.xml_units + ' - win or loss: ' + str(win_or_loss))
 
         # padding
         axes.grid(True)
         axes.margins(PADDING) # 5% padding in all directions
-
-        axes.set_title(share.get_name() + ' - buy price: ' + xml_share.xml_buy_price + \
-                     ' - units: ' + xml_share.xml_units + ' - win or loss: ' + str(win_or_loss))
 
         # create labels
         red_patch = mpatches.Patch(color='red', label='buy price')
@@ -307,16 +341,16 @@ class TrailingStopPrinter:
             plt.vlines(x=converted_ts_date, ymin=temp_low*VLINE_LOW_SCALE, ymax=temp_low*VLINE_HIGH_SCALE, colors='m')
 
             magenta_patch = mpatches.Patch(color='magenta', label='trailing stop date')
-            plt.legend(handles=[red_patch, green_patch, blue_patch, magenta_patch, EMA20_patch, EMA50_patch], loc=2, prop={'size':10})
+            plt.legend(handles=[red_patch, green_patch, blue_patch, magenta_patch, EMA20_patch, EMA50_patch], loc=2, prop={'size':7})
         else:
             plt.vlines(x=converted_buy_date, ymin=temp_low*VLINE_LOW_SCALE, ymax=temp_low*VLINE_HIGH_SCALE, colors='b')
-            plt.legend(handles=[red_patch, green_patch, blue_patch, EMA20_patch, EMA50_patch], loc=2, prop={'size':10})
+            plt.legend(handles=[red_patch, green_patch, blue_patch, EMA20_patch, EMA50_patch], loc=2, prop={'size':7})
          
 
         if not os.path.exists('./exports'):
             os.makedirs('./exports')
 
-        plt.savefig('./exports/' + xml_share.xml_name + '.png', dpi=400) 
+        #plt.savefig('./exports/' + xml_share.xml_name + '.png', dpi=400) 
         plt.show()
                 
      
