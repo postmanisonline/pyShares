@@ -54,7 +54,6 @@ class TrailingStopPrinter:
             curses.cbreak()
             self.stdscr.keypad(True)
             self.stdscr.addstr(0, 0, 'pyShares')
-            self.stdscr.addstr(0, 0, 'Refreshing ...')
 
             pretty_print_result = ''
 
@@ -71,6 +70,8 @@ class TrailingStopPrinter:
             shareCounter = 0
             
             for xml_share in share_repository.xml_shares:
+                self.stdscr.addstr(0, 0, 'Refreshing - share ' + str(shareCounter))
+                self.stdscr.refresh()
 
 #                 self.my_print(str(xml_share.xml_name) + '\n')
 #                 self.my_print(str(xml_share.xml_units) + '\n')
@@ -89,14 +90,14 @@ class TrailingStopPrinter:
             self.my_print('Select a share or press \'e\' to exit')
             self.stdscr.refresh()
 
-            quitPySahres = False
+            quitPyShares = False
             nextAction = '-1'
             nextAction = self.stdscr.getstr()
             
             if nextAction == 'e':
-                quitPySahres = True
+                quitPyShares = True
             
-            while quitPySahres == False:    
+            while quitPyShares == False:    
                 xml_share = share_repository.xml_shares[int(nextAction)-1]
                 share = Share(xml_share.xml_name) # user selections start with 1 
                 
@@ -178,10 +179,10 @@ class TrailingStopPrinter:
                 nextAction = self.stdscr.getstr()
             
                 if nextAction == 'e':
-                    quitPySahres = True
+                    quitPyShares = True
 
-            self.stdscr.addstr(0, 0, 'pyShares')
-            self.stdscr.refresh()
+                self.stdscr.addstr(0, 0, 'pyShares')
+                self.stdscr.refresh()
 
             self.my_print(pretty_print_result, curses.A_BOLD)
             self.line_counter = self.line_counter + pretty_print_result.count('\n')
@@ -257,13 +258,13 @@ class TrailingStopPrinter:
             converted_buy_date = datetime.datetime.strptime(xml_share.xml_buy_date, "%Y-%m-%d")
         
 
-        mondays = WeekdayLocator(MONDAY)            # major ticks on the mondays
+        mondays = WeekdayLocator(MONDAY,interval=4)            # major ticks on the mondays
         alldays = DayLocator()                      # minor ticks on the days
         week_formatter = DateFormatter('%Y-%m-%d')  # e.g., 12. Jan
 
         quotes = quotes_historical_yahoo_ohlc(xml_share.xml_name, 
                                               today - datetime.timedelta(12*365/12),
-                                              (today.year, today.month, today.day))
+                                              (today.year, today.month, today.day),adjusted=False)
 
         #fake the candle of today
         #d, open, high, low, close, volume
@@ -284,7 +285,7 @@ class TrailingStopPrinter:
                            temp_high,
                            temp_low,
                            temp_close)
-        
+         
         quotes.append(values_of_today)
 
         if len(quotes) == 0:
@@ -296,7 +297,7 @@ class TrailingStopPrinter:
         axes.xaxis.set_minor_locator(alldays)
         axes.xaxis.set_major_formatter(week_formatter)
 
-        candlestick_ohlc(axes, quotes, width=0.6, colorup='#83F52C', colordown='r')
+        candlestick_ohlc(axes, quotes, width=1, colorup='#83F52C', colordown='r')
 
         axes.xaxis_date()
         axes.autoscale_view()
@@ -325,30 +326,30 @@ class TrailingStopPrinter:
         
         EMA_days = []
         only_closing_values = []
-         
+          
         for entry in quotes:
             EMA_days.append(entry[DATE_POSITION])
             only_closing_values.append(entry[CLOSING_VALUE_POSITION])
-        
+         
         plt.plot(EMA_days[21:], self.exp_moving_average(historical_values=only_closing_values, time_window=20)[21:], 'r')
         plt.plot(EMA_days[51:], self.exp_moving_average(historical_values=only_closing_values, time_window=50)[51:], 'g')
-        
-        
+         
+         
         # if there is a trailing stop date then print it
         if xml_share.xml_trailing_stop_date != 'None':
             converted_ts_date = datetime.datetime.strptime(xml_share.xml_trailing_stop_date, "%Y-%m-%d")
             plt.vlines(x=converted_buy_date, ymin=temp_low*VLINE_LOW_SCALE, ymax=temp_high*VLINE_HIGH_SCALE, colors='b')
             plt.vlines(x=converted_ts_date, ymin=temp_low*VLINE_LOW_SCALE, ymax=temp_low*VLINE_HIGH_SCALE, colors='m')
-
+ 
             magenta_patch = mpatches.Patch(color='magenta', label='trailing stop date')
             plt.legend(handles=[red_patch, green_patch, blue_patch, magenta_patch, EMA20_patch, EMA50_patch], loc=2, prop={'size':7})
         else:
             plt.vlines(x=converted_buy_date, ymin=temp_low*VLINE_LOW_SCALE, ymax=temp_low*VLINE_HIGH_SCALE, colors='b')
             plt.legend(handles=[red_patch, green_patch, blue_patch, EMA20_patch, EMA50_patch], loc=2, prop={'size':7})
-         
-
-        if not os.path.exists('./exports'):
-            os.makedirs('./exports')
+          
+ 
+#         if not os.path.exists('./exports'):
+#             os.makedirs('./exports')
 
         #plt.savefig('./exports/' + xml_share.xml_name + '.png', dpi=400) 
         plt.show()
