@@ -8,7 +8,6 @@ import traceback
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
-import os
 import sys
 
 
@@ -19,6 +18,7 @@ from yahoo_finance import Share, YQLQueryError, YQLResponseMalformedError
 
 import xml_share_repository as xsr
 from xml_share import xml_share
+from next_action import next_action
 
 
 CLOSING_VALUE_POSITION = 4
@@ -66,20 +66,11 @@ class TrailingStopPrinter:
             else:
                 self.my_print('Arguments cannot be processed')
 
-
             shareCounter = 0
             
             for xml_share in share_repository.xml_shares:
                 self.stdscr.addstr(0, 0, 'Refreshing - share ' + str(shareCounter))
                 self.stdscr.refresh()
-
-#                 self.my_print(str(xml_share.xml_name) + '\n')
-#                 self.my_print(str(xml_share.xml_units) + '\n')
-#                 self.my_print(str(xml_share.xml_buy_price) + '\n')
-#                 self.my_print(str(xml_share.xml_trailing_stop_date) + '\n')
-#                 self.my_print(str(xml_share.xml_trailing_stop_percentage) + '\n')
-#                 self.my_print(str(xml_share.xml_trailing_stop_absolute) + '\n')
-#                 self.my_print(str(xml_share.xml_trailing_stop_init) + '\n')
 
                 shareCounter = shareCounter + 1
                 share = Share(xml_share.xml_name)
@@ -90,15 +81,10 @@ class TrailingStopPrinter:
             self.my_print('Select a share or press \'e\' to exit')
             self.stdscr.refresh()
 
-            quitPyShares = False
-            nextAction = '-1'
-            nextAction = self.stdscr.getstr()
+            next_action = self.wait_for_next_action()
             
-            if nextAction == 'e':
-                quitPyShares = True
-            
-            while quitPyShares == False:    
-                xml_share = share_repository.xml_shares[int(nextAction)-1]
+            while next_action.quit_pyShares == False:    
+                xml_share = share_repository.xml_shares[int(next_action.next_share)-1]
                 share = Share(xml_share.xml_name) # user selections start with 1 
                 
                 today = datetime.datetime.now()
@@ -137,31 +123,17 @@ class TrailingStopPrinter:
 
                         if float(xml_share.xml_trailing_stop_init) < possible_trailing_stop:
                             pretty_print_result = pretty_print_result + str(possible_trailing_stop) + '\n'
-                            #self.my_print('trailingStop {}\n'\
-                            #                                 .format(possible_trailing_stop))
                         else:
                             pretty_print_result = pretty_print_result + xml_share.xml_trailing_stop_init + '\n'
-                            #self.my_print('trailingStop {} (still on init value)\n'
-                            #              .format(xml_share.xml_trailing_stop_init), curses.A_BOLD)
 
                     if (xml_share.xml_trailing_stop_percentage == 'None') and\
                         (xml_share.xml_trailing_stop_absolute == 'None'):
                         pretty_print_result = pretty_print_result + 'No stop set\n'
                 else:
-                    #self.my_print('Trailing stop set today '+\
-                    #                                 '=> no historical data available yet')
                     pretty_print_result = pretty_print_result + \
                     'Trailing stop set today => no historical data available yet\n'
 
-                #pretty_print_result = pretty_print_result + ' --- '
-
-                #self.my_print('Open: {}\n'.format(share.get_open()))
-                #self.my_print('Current: {}\n'.format(share.get_price()))
-                #self.my_print('Update time: {}\n'.format(share.get_trade_datetime()))
-                #self.my_print('-----------------\n')
-                #self.stdscr.hline(self.line_counter, 0, '-', NUMBER_OF_HORIZONTAL_CHARACTERS)
                 self.line_counter = self.line_counter + 1
-                #self.my_print('\n')
 
                 current_win_or_loss = 0
                 
@@ -176,13 +148,7 @@ class TrailingStopPrinter:
                                                today_open=share.get_open(),
                                                win_or_loss=current_win_or_loss)
                 
-                nextAction = self.stdscr.getstr()
-            
-                if nextAction == 'e':
-                    quitPyShares = True
-
-                self.stdscr.addstr(0, 0, 'pyShares')
-                self.stdscr.refresh()
+                next_action = self.wait_for_next_action()
 
             self.my_print(pretty_print_result, curses.A_BOLD)
             self.line_counter = self.line_counter + pretty_print_result.count('\n')
@@ -229,6 +195,32 @@ class TrailingStopPrinter:
             curses.endwin()
 
 
+    def wait_for_next_action(self):
+        nextActionDetermined = False
+        return_next = next_action(next_share='-1', quit_pyShares=False)
+                
+        while nextActionDetermined == False:
+            nextActionString = self.stdscr.getstr()
+        
+            try:
+                int(nextActionString)
+                nextActionDetermined = True
+                return_next = next_action(next_share=nextActionString, quit_pyShares=False)
+                self.stdscr.addstr(0, 0, 'pyShares')
+            except ValueError:                
+                if nextActionString == 'e':
+                    return_next = next_action(next_share='-1', quit_pyShares=True)
+                    nextActionDetermined = True
+                    self.stdscr.addstr(0, 0, 'pyShares - quitting')
+                else:
+                    nextActionDetermined = False
+                    self.stdscr.addstr(0, 0, 'pyShares - unknown input')
+        
+            self.stdscr.refresh()
+            
+        return return_next  
+    
+    
     def my_print(self, text, mode=curses.A_NORMAL):
         """
         This method is used for printing one line
@@ -248,7 +240,7 @@ class TrailingStopPrinter:
 
     def plot_candle_stick_diagram(self, xml_share, share, current_price, today_open, win_or_loss):
         """
-        This method is used for printing candle stick diagrams.
+        This method is used for printing a single candle stick diagram.
         """       
 
         today = datetime.datetime.now()
@@ -257,10 +249,9 @@ class TrailingStopPrinter:
         if xml_share.xml_buy_date!='None':    
             converted_buy_date = datetime.datetime.strptime(xml_share.xml_buy_date, "%Y-%m-%d")
         
-
-        mondays = WeekdayLocator(MONDAY,interval=4)            # major ticks on the mondays
-        alldays = DayLocator()                      # minor ticks on the days
-        week_formatter = DateFormatter('%Y-%m-%d')  # e.g., 12. Jan
+        mondays = WeekdayLocator(MONDAY,interval=4)     # major ticks on the mondays
+        alldays = DayLocator()                          # minor ticks on the days
+        week_formatter = DateFormatter('%Y-%m-%d')      # e.g., 12. Jan
 
         quotes = quotes_historical_yahoo_ohlc(xml_share.xml_name, 
                                               today - datetime.timedelta(12*365/12),
@@ -322,7 +313,6 @@ class TrailingStopPrinter:
         blue_patch = mpatches.Patch(color='blue', label='buy date')
         EMA20_patch = mpatches.Patch(color='red', label='EMA20')
         EMA50_patch = mpatches.Patch(color='green', label='EMA50') 
-
         
         EMA_days = []
         only_closing_values = []
@@ -333,8 +323,7 @@ class TrailingStopPrinter:
          
         plt.plot(EMA_days[21:], self.exp_moving_average(historical_values=only_closing_values, time_window=20)[21:], 'r')
         plt.plot(EMA_days[51:], self.exp_moving_average(historical_values=only_closing_values, time_window=50)[51:], 'g')
-         
-         
+          
         # if there is a trailing stop date then print it
         if xml_share.xml_trailing_stop_date != 'None':
             converted_ts_date = datetime.datetime.strptime(xml_share.xml_trailing_stop_date, "%Y-%m-%d")
