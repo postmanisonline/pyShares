@@ -1,5 +1,6 @@
 import xml.etree.ElementTree
 import xml_share as xshare
+import os
 
 
 class xml_share_repository:
@@ -8,7 +9,7 @@ class xml_share_repository:
     """
     xml_shares = []
     
-    def built_up_repository(self, share_file='shares.xml'):
+    def built_up_repository(self, share_file=os.path.dirname(__file__) + '/shares.xml'):
         """
         Fill the repository at start.
         """
@@ -18,7 +19,10 @@ class xml_share_repository:
             xml_share = xshare.xml_share()
             
             for xml_name_temp in xml_share_in_file.findall('name'):
-                xml_share.xml_name = str(xml_name_temp.text)
+                if "&amp;" in xml_name_temp:
+                    xml_name_temp.replace('&amp;', '&')
+                else:
+                    xml_share.xml_name = str(xml_name_temp.text)
                 
             for xml_units_temp in xml_share_in_file.findall('units'):
                 xml_share.xml_units = str(xml_units_temp.text)
