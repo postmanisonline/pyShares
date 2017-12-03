@@ -45,6 +45,12 @@ class xml_share_repository:
             for xml_trailing_stop_init_temp in xml_share_in_file.findall('trailingStopInit'):
                 xml_share.xml_trailing_stop_init = str(xml_trailing_stop_init_temp.text)
                 
+            if len(xml_share_in_file.findall('stopExpiration')) < 1:
+                xml_share.xml_stop_expiration = ''
+            
+            for xml_stop_expiration_temp in xml_share_in_file.findall('stopExpiration'):
+                xml_share.xml_stop_expiration = str(xml_stop_expiration_temp.text)
+                
             
             positionToInsert = 0
             

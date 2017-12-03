@@ -10,6 +10,7 @@
 		<trailingStopPercentage></trailingStopPercentage>
 		<trailingStopAbsolute></trailingStopAbsolute>
 		<trailingStopInit></trailingStopInit>
+		<stopExpiration>2017-12-30</stopExpiration>
 	</share>
 	<share>
 		<name>ProSiebenSat.1 Media SE</name>
@@ -20,6 +21,7 @@
 		<trailingStopPercentage></trailingStopPercentage>
 		<trailingStopAbsolute></trailingStopAbsolute>
 		<trailingStopInit></trailingStopInit>
+		<stopExpiration>2017-12-06</stopExpiration>
 	</share>
 	<share>
 		<name>RWE AG</name>
@@ -30,5 +32,6 @@
 		<trailingStopPercentage></trailingStopPercentage>
 		<trailingStopAbsolute></trailingStopAbsolute>
 		<trailingStopInit></trailingStopInit>
+		<stopExpiration></stopExpiration>
 	</share>
 </shareList>

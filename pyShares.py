@@ -14,7 +14,6 @@ import time
 import urllib2
 import re
 
-from googlefinance import getQuotes
 
 from matplotlib.dates import DateFormatter, WeekdayLocator,\
     DayLocator, MONDAY, date2num
@@ -104,6 +103,18 @@ class TrailingStopPrinter:
                                 current_win_or_loss = (int(xml_share.xml_units) * float(currentBid)) - \
                                                 (int(xml_share.xml_units) * float(xml_share.xml_buy_price))
                             
+                            # No stop set at all
+                            if xml_share.xml_stop_expiration == 'None':
+                                self.my_print('No stop set for ' + xml_share.xml_name, curses.color_pair(4))
+                            else:   
+                                # Stop is about to expire
+                                expirationDate = datetime.date(int(xml_share.xml_stop_expiration.split("-")[0]),
+                                                 int(xml_share.xml_stop_expiration.split("-")[1]),
+                                                 int(xml_share.xml_stop_expiration.split("-")[2]))
+                                
+                                if expirationDate < (datetime.date.today() + (datetime.timedelta(days=20))):
+                                    self.my_print('Stop is about to expire for ' + xml_share.xml_name, curses.color_pair(5))
+                                
                             if current_win_or_loss >= 0:
                                 self.my_print(str(shareCounter) + ': ' + xml_share.xml_name + ' (' + xml_share.xml_buy_price + ' -> ' + currentBid + ')' + ' => ' + str(current_win_or_loss) + '\n', curses.color_pair(3))
                             else:
@@ -140,199 +151,7 @@ class TrailingStopPrinter:
             self.stdscr.keypad(False)
             curses.echo()
             curses.endwin()
-            
-        
-    
-
-    def liveStatsGoogleDeprecated(self):
-        """
-        This function prints all the textual information about a share.
-        """
-        try:
-            curses.start_color()
-            curses.use_default_colors()
-            
-            for i in range(0, curses.COLORS):
-                curses.init_pair(i + 1, i, -1)         
-            
-            curses.noecho()
-            curses.cbreak()
-            self.stdscr.keypad(True)
-            self.line_counter = 0
-            share_repository = xsr.xml_share_repository()
-            
-            if len(sys.argv)==1:
-                share_repository.built_up_repository()
-            elif len(sys.argv)==2 and sys.argv[1]=='-w':
-                share_repository.built_up_repository(share_file='watchlist.xml')
-            else:
-                self.my_print('Arguments cannot be processed', colorPair=curses.color_pair(0))
-
-            shareCounter = 0
-            
-            while True:
-                for xml_share in share_repository.xml_shares:
-                    try:    
-                        shareCounter = shareCounter + 1
-                        
-                        share = getQuotes(xml_share.xml_name)[0]
-                                                                       
-                        current_win_or_loss = 0
-                    
-                        if xml_share.xml_buy_price != 'None':
-                            current_win_or_loss = (int(xml_share.xml_units) * float(share['LastTradePrice'])) - \
-                                            (int(xml_share.xml_units) * float(xml_share.xml_buy_price))
-                        
-                        if current_win_or_loss >= 0:
-                            self.my_print(str(shareCounter) + ': ' + share["StockSymbol"] + '(' + share['LastTradePrice'] + ')' + '=> ' + str(current_win_or_loss) + '\n', curses.color_pair(3))
-                        else:
-                            self.my_print(str(shareCounter) + ': ' + share["StockSymbol"] + '(' + share['LastTradePrice'] + ')' + '=> ' + str(current_win_or_loss) + '\n', curses.color_pair(2))
-                        #self.my_print(str(share.get_info()) + '\n')
-                    except:
-                        with open('error_log.txt', 'a') as error_log:
-                            error_log.write(str(traceback.print_exc()) + '\n')
-                            error_log.write('xml_share was' + str(xml_share) + '\n')
-                        self.my_print('xml_share', colorPair=curses.color_pair(0))
-                        self.stdscr.addstr(0, 0, 'Something went terribly wrong => xml_share unknown exception              ')
-                        self.stdscr.getch()
-
-                self.my_print(str(datetime.datetime.now()), curses.color_pair(1))
-                self.stdscr.refresh()
-                time.sleep(15)
-                self.stdscr.clear()
-                shareCounter = 0
-                self.line_counter = 0
-            
-        except BaseException as base_exception:
-            with open('error_log.txt', 'a') as error_log:
-                error_log.write(str(base_exception) + '\n')
-                error_log.write(str(traceback.print_exc()) + '\n')
-                error_log.write('line_counter was ' + str(self.line_counter) + '\n')
-            self.stdscr.addstr(0, 0, 'Something went terribly wrong               ')
-            self.stdscr.getch()
-        except YQLQueryError as yql_err:
-            with open('error_log.txt', 'a') as error_log:
-                error_log.write(str(yql_err) + '\n')
-                error_log.write(str(traceback.print_exc()) + '\n')
-                error_log.write('line_counter was ' + str(self.line_counter) + '\n')
-            self.stdscr.addstr(0, 0, 'Something went terribly wrong => could not receive data from server              ')
-            self.stdscr.getch()
-        except YQLResponseMalformedError as yql_err:
-            with open('error_log.txt', 'a') as error_log:
-                error_log.write(str(yql_err) + '\n')
-                error_log.write(str(traceback.print_exc()) + '\n')
-                error_log.write('line_counter was ' + str(self.line_counter) + '\n')
-            self.stdscr.addstr(0, 0, 'Something went terribly wrong => could not receive data from server              ')
-            self.stdscr.getch()
-        except:
-            with open('error_log.txt', 'a') as error_log:
-                error_log.write(str(traceback.print_exc()) + '\n')
-                error_log.write('line_counter was ' + str(self.line_counter) + '\n')
-            self.my_print('unknown exception', colorPair=curses.color_pair(0))
-            self.stdscr.addstr(0, 0, 'Something went terribly wrong => unknown exception              ')
-            self.stdscr.getch()
-        finally:
-            #deinit stdscr
-            curses.nocbreak()
-            self.stdscr.keypad(False)
-            curses.echo()
-            curses.endwin()
-
-
-    def liveStatsYahooDeprecated(self):
-        """
-        This function prints all the textual information about a share.
-        """
-        try:
-            curses.start_color()
-            curses.use_default_colors()
-            
-            for i in range(0, curses.COLORS):
-                curses.init_pair(i + 1, i, -1)
-            
-            colorsUsable = False
-            with open('error_log.txt', 'a') as error_log:
-                error_log.write('start_color(): ' + str(colorsUsable) + '\n')
-                error_log.write('has_colors(): ' + str(curses.has_colors()) + '\n')          
-            
-            curses.noecho()
-            curses.cbreak()
-            self.stdscr.keypad(True)
-            self.line_counter = 0
-            share_repository = xsr.xml_share_repository()
-            
-            if len(sys.argv)==1:
-                share_repository.built_up_repository()
-            elif len(sys.argv)==2 and sys.argv[1]=='-w':
-                share_repository.built_up_repository(share_file='watchlist.xml')
-            else:
-                self.my_print('Arguments cannot be processed')
-
-            shareCounter = 0
-            
-            while True:
-                for xml_share in share_repository.xml_shares:
-                    try:    
-                        shareCounter = shareCounter + 1
-                        share = Share(xml_share.xml_name)
-                        
-                        current_win_or_loss = 0
-                    
-                        if xml_share.xml_buy_price != 'None':
-                            current_win_or_loss = (int(xml_share.xml_units) * float(share.get_price())) - \
-                                            (int(xml_share.xml_units) * float(xml_share.xml_buy_price))
-                        
-                        self.my_print(str(shareCounter) + ': ' + share.get_name() + '(' + share.get_price() + ')' + '=> ' + str(current_win_or_loss) + '\n')
-                        #self.my_print(str(share.get_info()) + '\n')
-                    except:
-                        with open('error_log.txt', 'a') as error_log:
-                            error_log.write(str(traceback.print_exc()) + '\n')
-                            error_log.write('xml_share was' + str(xml_share) + '\n')
-                        self.my_print('xml_share')
-                        self.stdscr.addstr(0, 0, 'Something went terribly wrong => xml_share unknown exception              ')
-                        self.stdscr.getch()
-
-                self.stdscr.refresh()
-                time.sleep(15)
-                self.stdscr.clear()
-                shareCounter = 0
-                self.line_counter = 0
-            
-        except BaseException as base_exception:
-            with open('error_log.txt', 'a') as error_log:
-                error_log.write(str(base_exception) + '\n')
-                error_log.write(str(traceback.print_exc()) + '\n')
-                error_log.write('line_counter was ' + str(self.line_counter) + '\n')
-            self.stdscr.addstr(0, 0, 'Something went terribly wrong               ')
-            self.stdscr.getch()
-        except YQLQueryError as yql_err:
-            with open('error_log.txt', 'a') as error_log:
-                error_log.write(str(yql_err) + '\n')
-                error_log.write(str(traceback.print_exc()) + '\n')
-                error_log.write('line_counter was ' + str(self.line_counter) + '\n')
-            self.stdscr.addstr(0, 0, 'Something went terribly wrong => could not receive data from server              ')
-            self.stdscr.getch()
-        except YQLResponseMalformedError as yql_err:
-            with open('error_log.txt', 'a') as error_log:
-                error_log.write(str(yql_err) + '\n')
-                error_log.write(str(traceback.print_exc()) + '\n')
-                error_log.write('line_counter was ' + str(self.line_counter) + '\n')
-            self.stdscr.addstr(0, 0, 'Something went terribly wrong => could not receive data from server              ')
-            self.stdscr.getch()
-        except:
-            with open('error_log.txt', 'a') as error_log:
-                error_log.write(str(traceback.print_exc()) + '\n')
-                error_log.write('line_counter was ' + str(self.line_counter) + '\n')
-            self.my_print('unknown exception')
-            self.stdscr.addstr(0, 0, 'Something went terribly wrong => unknown exception              ')
-            self.stdscr.getch()
-        finally:
-            #deinit stdscr
-            curses.nocbreak()
-            self.stdscr.keypad(False)
-            curses.echo()
-            curses.endwin()
-            
+       
             
     def print_for_all_shares(self):
         """
@@ -666,9 +485,11 @@ class TrailingStopPrinter:
         
 
 if __name__ == "__main__":
-    #debugInput = raw_input('This is an entry point for remote debugging\n')
 
     trailing_stop_printer = TrailingStopPrinter()
+    
+    # for remote debugging
+    #time.sleep(25)
     #trailing_stop_printer.print_for_all_shares()
     #trailing_stop_printer.liveStats()
     trailing_stop_printer.tradegateLiveData()

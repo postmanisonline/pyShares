@@ -10,3 +10,4 @@ class xml_share:
     xml_trailing_stop_percentage = ''
     xml_trailing_stop_absolute = ''
     xml_trailing_stop_init = '' 
+    xml_stop_expiration = ''
